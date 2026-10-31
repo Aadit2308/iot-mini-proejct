@@ -1,0 +1,17 @@
+# Core controller / simulator: Python standard library only.
+
+# Dashboard
+streamlit>=1.50
+pandas>=2.0
+
+# NETCONF client + YANG validation
+ncclient>=0.6.15
+pyang>=2.6
+lxml>=4.9
+
+# Testing
+pytest>=7.4
+
+# NETCONF server-side adapter (Linux/WSL only; needs libsysrepo + libyang
+# installed system-wide first -- see scripts/install_wsl_deps.sh).
+# Installed separately with:  pip install -r requirements-netconf.txt

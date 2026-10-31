@@ -1,0 +1,4 @@
+# Python bindings for sysrepo (CESNET). Requires the sysrepo C library and
+# headers (built by scripts/install_wsl_deps.sh). Linux/WSL only.
+sysrepo>=1.7
+libyang>=3.0

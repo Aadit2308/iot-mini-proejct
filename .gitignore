@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+.venv-*/
+logs/*.log
+logs/*.jsonl
+runtime/
+simulator/contiki/build/
+simulator/contiki/*.native
+*.cooja.log
+.streamlit/secrets.toml
+simulator/contiki/irrigation.csc
