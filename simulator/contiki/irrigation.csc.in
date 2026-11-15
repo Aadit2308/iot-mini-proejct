@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Cooja simulation template: smart irrigation with two Contiki-NG motes.
+  scripts/contiki.sh cooja <N> turns it into irrigation.csc (FAULT_SCENARIO=N).
+
+    mote 1  Soil moisture sensor   sensor_node.c      broadcasts a report every 5 s
+    mote 2  Irrigation controller  controller_node.c  fault detection + pump (LED green)
+
+  The motes talk over the simulated radio (UDGM, NullNet). The controller mote's
+  serial port is exposed by the Serial Socket server on TCP 60001, where the
+  Python controller (NETCONF-managed supervisor) and the dashboard read it.
+  Real-time speed, so wall-clock timeouts behave as on real hardware.
+-->
+<simconf version="2022112801">
+  <simulation>
+    <title>Smart irrigation - sensor + controller motes (scenario @SCENARIO@)</title>
+    <speedlimit>1.0</speedlimit>
+    <randomseed>123456</randomseed>
+    <motedelay_us>1000000</motedelay_us>
+    <radiomedium>
+      org.contikios.cooja.radiomediums.UDGM
+      <transmitting_range>50.0</transmitting_range>
+      <interference_range>100.0</interference_range>
+      <success_ratio_tx>1.0</success_ratio_tx>
+      <success_ratio_rx>1.0</success_ratio_rx>
+    </radiomedium>
+    <events>
+      <logoutput>40000</logoutput>
+    </events>
+    <motetype>
+      org.contikios.cooja.contikimote.ContikiMoteType
+      <description>Soil moisture sensor (FAULT_SCENARIO=@SCENARIO@)</description>
+      <source>[CONFIG_DIR]/sensor_node.c</source>
+      <commands>$(MAKE) TARGET=cooja CONTIKI=@CONTIKI@ clean
+$(MAKE) -j$(CPUS) sensor_node.cooja TARGET=cooja CONTIKI=@CONTIKI@ FAULT_SCENARIO=@SCENARIO@</commands>
+      <moteinterface>org.contikios.cooja.interfaces.Position</moteinterface>
+      <moteinterface>org.contikios.cooja.interfaces.Battery</moteinterface>
+      <moteinterface>org.contikios.cooja.contikimote.interfaces.ContikiVib</moteinterface>
+      <moteinterface>org.contikios.cooja.contikimote.interfaces.ContikiMoteID</moteinterface>
+      <moteinterface>org.contikios.cooja.contikimote.interfaces.ContikiRS232</moteinterface>
+      <moteinterface>org.contikios.cooja.contikimote.interfaces.ContikiBeeper</moteinterface>
+      <moteinterface>org.contikios.cooja.interfaces.RimeAddress</moteinterface>
+      <moteinterface>org.contikios.cooja.interfaces.IPAddress</moteinterface>
+      <moteinterface>org.contikios.cooja.contikimote.interfaces.ContikiRadio</moteinterface>
+      <moteinterface>org.contikios.cooja.contikimote.interfaces.ContikiButton</moteinterface>
+      <moteinterface>org.contikios.cooja.contikimote.interfaces.ContikiPIR</moteinterface>
+      <moteinterface>org.contikios.cooja.contikimote.interfaces.ContikiClock</moteinterface>
+      <moteinterface>org.contikios.cooja.contikimote.interfaces.ContikiLED</moteinterface>
+      <moteinterface>org.contikios.cooja.contikimote.interfaces.ContikiCFS</moteinterface>
+      <moteinterface>org.contikios.cooja.contikimote.interfaces.ContikiEEPROM</moteinterface>
+      <moteinterface>org.contikios.cooja.interfaces.Mote2MoteRelations</moteinterface>
+      <moteinterface>org.contikios.cooja.interfaces.MoteAttributes</moteinterface>
+      <mote>
+        <interface_config>
+          org.contikios.cooja.interfaces.Position
+          <pos x="20.0" y="40.0" />
+        </interface_config>
+        <interface_config>
+          org.contikios.cooja.contikimote.interfaces.ContikiMoteID
+          <id>1</id>
+        </interface_config>
+      </mote>
+    </motetype>
+    <motetype>
+      org.contikios.cooja.contikimote.ContikiMoteType
+      <description>Irrigation controller (pump = green LED, fault = red LED)</description>
+      <source>[CONFIG_DIR]/controller_node.c</source>
+      <commands>$(MAKE) -j$(CPUS) controller_node.cooja TARGET=cooja CONTIKI=@CONTIKI@</commands>
+      <moteinterface>org.contikios.cooja.interfaces.Position</moteinterface>
+      <moteinterface>org.contikios.cooja.interfaces.Battery</moteinterface>
+      <moteinterface>org.contikios.cooja.contikimote.interfaces.ContikiVib</moteinterface>
+      <moteinterface>org.contikios.cooja.contikimote.interfaces.ContikiMoteID</moteinterface>
+      <moteinterface>org.contikios.cooja.contikimote.interfaces.ContikiRS232</moteinterface>
+      <moteinterface>org.contikios.cooja.contikimote.interfaces.ContikiBeeper</moteinterface>
+      <moteinterface>org.contikios.cooja.interfaces.RimeAddress</moteinterface>
+      <moteinterface>org.contikios.cooja.interfaces.IPAddress</moteinterface>
+      <moteinterface>org.contikios.cooja.contikimote.interfaces.ContikiRadio</moteinterface>
+      <moteinterface>org.contikios.cooja.contikimote.interfaces.ContikiButton</moteinterface>
+      <moteinterface>org.contikios.cooja.contikimote.interfaces.ContikiPIR</moteinterface>
+      <moteinterface>org.contikios.cooja.contikimote.interfaces.ContikiClock</moteinterface>
+      <moteinterface>org.contikios.cooja.contikimote.interfaces.ContikiLED</moteinterface>
+      <moteinterface>org.contikios.cooja.contikimote.interfaces.ContikiCFS</moteinterface>
+      <moteinterface>org.contikios.cooja.contikimote.interfaces.ContikiEEPROM</moteinterface>
+      <moteinterface>org.contikios.cooja.interfaces.Mote2MoteRelations</moteinterface>
+      <moteinterface>org.contikios.cooja.interfaces.MoteAttributes</moteinterface>
+      <mote>
+        <interface_config>
+          org.contikios.cooja.interfaces.Position
+          <pos x="60.0" y="40.0" />
+        </interface_config>
+        <interface_config>
+          org.contikios.cooja.contikimote.interfaces.ContikiMoteID
+          <id>2</id>
+        </interface_config>
+      </mote>
+    </motetype>
+  </simulation>
+  <plugin>
+    org.contikios.cooja.plugins.Visualizer
+    <plugin_config>
+      <moterelations>true</moterelations>
+      <skin>org.contikios.cooja.plugins.skins.IDVisualizerSkin</skin>
+      <skin>org.contikios.cooja.plugins.skins.UDGMVisualizerSkin</skin>
+      <skin>org.contikios.cooja.plugins.skins.LEDVisualizerSkin</skin>
+      <skin>org.contikios.cooja.plugins.skins.TrafficVisualizerSkin</skin>
+      <viewport>4.0 0.0 0.0 4.0 40.0 -40.0</viewport>
+    </plugin_config>
+    <bounds x="1" y="1" height="400" width="400" z="2" />
+  </plugin>
+  <plugin>
+    org.contikios.cooja.plugins.LogListener
+    <plugin_config>
+      <filter />
+      <formatted_time />
+      <coloring />
+    </plugin_config>
+    <bounds x="400" y="1" height="450" width="900" z="1" />
+  </plugin>
+  <plugin>
+    org.contikios.cooja.serialsocket.SerialSocketServer
+    <mote_arg>1</mote_arg>
+    <plugin_config>
+      <port>60001</port>
+      <bound>true</bound>
+    </plugin_config>
+    <bounds x="1" y="410" height="116" width="362" z="0" />
+  </plugin>
+</simconf>

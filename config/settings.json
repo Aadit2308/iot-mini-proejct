@@ -1,0 +1,5 @@
+{
+  "moisture_threshold_low": 28.0,
+  "moisture_threshold_high": 45.0,
+  "sensor_timeout": 15
+}

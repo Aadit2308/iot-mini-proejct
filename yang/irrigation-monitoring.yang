@@ -1,0 +1,360 @@
+module irrigation-monitoring {
+  yang-version 1.1;
+  namespace "urn:example:irrigation-monitoring";
+  prefix im;
+
+  import ietf-yang-types {
+    prefix yang;
+    reference
+      "RFC 6991: Common YANG Data Types";
+  }
+
+  organization
+    "Smart Irrigation Mini-Project";
+  contact
+    "Project maintainer";
+  description
+    "Configuration and monitoring of a fault-aware smart irrigation
+     controller. A soil-moisture sensor reports every few seconds; the
+     controller validates each reading, tracks sensor health and drives a
+     virtual irrigation pump with hysteresis between a low and a high
+     moisture threshold.
+
+     Safety rule: invalid or stale sensor data never switches the pump
+     on. While the sensor is invalid or stale the pump is held OFF and
+     automatic control is suspended.";
+
+  revision 2026-10-31 {
+    description
+      "Initial revision.";
+    reference
+      "Fault-Aware Smart Irrigation Monitoring and Management Using
+       NETCONF-YANG (project report, docs/project_report.md).";
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Types                                                              */
+  /* ------------------------------------------------------------------ */
+
+  typedef moisture-percent {
+    type decimal64 {
+      fraction-digits 1;
+      range "0.0 .. 100.0";
+    }
+    units "percent";
+    description
+      "Volumetric soil moisture in percent (0.0 - 100.0).";
+  }
+
+  typedef sensor-health {
+    type enumeration {
+      enum healthy {
+        value 0;
+        description
+          "Last reading was valid and arrived within the sensor timeout.";
+      }
+      enum invalid {
+        value 1;
+        description
+          "Last reading was out of range (outside 0-100 %) or malformed.";
+      }
+      enum stale {
+        value 2;
+        description
+          "No valid reading received within sensor-timeout seconds
+           (communication fault).";
+      }
+    }
+    description
+      "Health state of the soil-moisture sensor.";
+  }
+
+  typedef pump-state-type {
+    type enumeration {
+      enum off {
+        value 0;
+        description
+          "Pump is stopped.";
+      }
+      enum on {
+        value 1;
+        description
+          "Pump is irrigating.";
+      }
+    }
+    description
+      "State of the virtual irrigation pump.";
+  }
+
+  typedef alert-type {
+    type enumeration {
+      enum invalid-reading {
+        description
+          "A reading outside 0-100 % was received.";
+      }
+      enum malformed-message {
+        description
+          "A sensor message could not be parsed.";
+      }
+      enum communication-timeout {
+        description
+          "No valid reading arrived within sensor-timeout seconds.";
+      }
+    }
+    description
+      "Kinds of fault alert raised by the controller.";
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Data tree                                                          */
+  /* ------------------------------------------------------------------ */
+
+  container irrigation {
+    description
+      "Smart irrigation controller.";
+
+    container settings {
+      must "moisture-threshold-high > moisture-threshold-low" {
+        error-message
+          "moisture-threshold-high must be greater than
+           moisture-threshold-low";
+        error-app-tag "threshold-order-violation";
+        description
+          "The hysteresis band must be non-empty.";
+      }
+      description
+        "Controller configuration. Changes made with <edit-config> are
+         applied to the running controller without a restart.";
+
+      leaf moisture-threshold-low {
+        type moisture-percent;
+        default "30.0";
+        description
+          "When the sensor is healthy and moisture drops below this
+           value, the pump is switched ON.";
+      }
+
+      leaf moisture-threshold-high {
+        type moisture-percent;
+        default "45.0";
+        description
+          "When the sensor is healthy and moisture rises above this
+           value, the pump is switched OFF. Between the low and high
+           thresholds the previous pump state is maintained.";
+      }
+
+      leaf sensor-timeout {
+        type uint16 {
+          range "1 .. 300";
+        }
+        units "seconds";
+        default "15";
+        description
+          "If no valid reading is received for this many seconds the
+           sensor is marked stale, a communication-timeout alert is
+           raised, the pump is forced OFF and automatic irrigation is
+           suspended.";
+      }
+    }
+
+    container status {
+      config false;
+      description
+        "Operational state reported by the controller.";
+
+      leaf sensor-id {
+        type string;
+        description
+          "Identifier of the sensor that sent the last message.";
+      }
+
+      leaf soil-moisture {
+        type moisture-percent;
+        description
+          "Most recent valid soil-moisture reading. Absent until the
+           first valid reading. Invalid values are never stored here.";
+      }
+
+      leaf sensor-status {
+        type sensor-health;
+        mandatory true;
+        description
+          "Current sensor health.";
+      }
+
+      leaf status-detail {
+        type string;
+        description
+          "Human-readable explanation of sensor-status.";
+      }
+
+      leaf pump-state {
+        type pump-state-type;
+        mandatory true;
+        description
+          "Current state of the virtual irrigation pump.";
+      }
+
+      leaf auto-control {
+        type enumeration {
+          enum active {
+            description
+              "Pump follows the threshold rules.";
+          }
+          enum suspended {
+            description
+              "Automatic control suspended because the sensor is
+               invalid or stale; pump held OFF.";
+          }
+        }
+        description
+          "Whether automatic irrigation control is running.";
+      }
+
+      leaf fault-alert {
+        type boolean;
+        mandatory true;
+        description
+          "True while at least one fault alert is active.";
+      }
+
+      leaf fault-description {
+        type string;
+        description
+          "Description of the active fault alert(s), or 'none'.";
+      }
+
+      leaf last-valid-reading {
+        type yang:date-and-time;
+        description
+          "Time at which the last valid reading was received.";
+      }
+
+      leaf last-reading-timestamp {
+        type yang:date-and-time;
+        description
+          "Time at which the last message of any kind (valid, invalid
+           or malformed) was received.";
+      }
+
+      leaf last-raw-value {
+        type string;
+        description
+          "Raw value of the last received message, for diagnostics.";
+      }
+
+      leaf total-valid-readings {
+        type yang:zero-based-counter64;
+        description
+          "Number of readings accepted since the controller started.";
+      }
+
+      leaf total-invalid-readings {
+        type yang:zero-based-counter64;
+        description
+          "Number of out-of-range or malformed readings rejected.";
+      }
+
+      leaf total-timeout-events {
+        type yang:zero-based-counter64;
+        description
+          "Number of times the sensor became stale.";
+      }
+
+      leaf total-missing-messages {
+        type yang:zero-based-counter64;
+        description
+          "Number of messages detected as lost (sequence gaps).";
+      }
+
+      leaf total-delayed-messages {
+        type yang:zero-based-counter64;
+        description
+          "Number of messages that arrived late (accepted with a
+           warning, or discarded because they were older than newer
+           data or the sensor timeout).";
+      }
+
+      leaf total-recovery-events {
+        type yang:zero-based-counter64;
+        description
+          "Number of transitions from invalid/stale back to healthy.";
+      }
+
+      container applied-settings {
+        description
+          "Configuration values the running controller is actually
+           using. After a successful <edit-config> these converge to
+           the values under /irrigation/settings (normally within one
+           second), which confirms the change reached the controller.";
+        leaf moisture-threshold-low {
+          type moisture-percent;
+          description
+            "Low threshold in use.";
+        }
+        leaf moisture-threshold-high {
+          type moisture-percent;
+          description
+            "High threshold in use.";
+        }
+        leaf sensor-timeout {
+          type uint16;
+          units "seconds";
+          description
+            "Sensor timeout in use.";
+        }
+      }
+
+      list active-alert {
+        key "type";
+        description
+          "Currently active fault alerts. Cleared when valid readings
+           resume.";
+        leaf type {
+          type alert-type;
+          description
+            "Alert kind.";
+        }
+        leaf description {
+          type string;
+          description
+            "Details of the fault.";
+        }
+        leaf raised-at {
+          type yang:date-and-time;
+          description
+            "When the alert was first raised.";
+        }
+      }
+    }
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Notifications                                                      */
+  /* ------------------------------------------------------------------ */
+
+  notification sensor-health-change {
+    description
+      "Sent when sensor-status changes (fault detected or recovered).";
+    leaf previous-status {
+      type sensor-health;
+      description
+        "Status before the change.";
+    }
+    leaf new-status {
+      type sensor-health;
+      description
+        "Status after the change.";
+    }
+    leaf pump-state {
+      type pump-state-type;
+      description
+        "Pump state after the change.";
+    }
+    leaf description {
+      type string;
+      description
+        "Reason for the change.";
+    }
+  }
+}
